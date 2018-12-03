@@ -39,7 +39,7 @@ jobs:
       <<: *_skip_steps
       install:
         - pip install -r requirements/doc.txt
-      script: 
+      script:
         - make doc
 
     - stage: deploy
