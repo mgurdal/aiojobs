@@ -79,6 +79,41 @@ or just
    async def handler(request):
        return web.Response()
 
+Integration with sanic
+============================
+
+.. code-block:: python
+
+    from sanic import Sanic, response, views
+    from aiojobs.sanic import setup, spawn
+
+    async def handler(request):
+        await spawn(request, coro())
+        return response.json({})
+
+    app = Sanic(__name__)
+    app.add_route(test, '/')
+    setup(app)
+
+
+or just
+
+.. code-block:: python
+
+    from aiojobs.sanic import atomic
+
+    @atomic
+    async def handler(request):
+        return response.json({})
+
+
+    class Handler(views.HTTPMethodView):
+        decorators = [atomic]
+
+        async def get(self, request):
+            return response.json({})
+
+
 For more information read documentation: https://aiojobs.readthedocs.io
 
 Communication channels

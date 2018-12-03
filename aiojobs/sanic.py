@@ -1,7 +1,5 @@
 from functools import wraps
 
-from aiohttp.web import View
-
 from . import create_scheduler
 
 __all__ = ('setup', 'spawn', 'get_scheduler', 'get_scheduler_from_app',
@@ -9,7 +7,7 @@ __all__ = ('setup', 'spawn', 'get_scheduler', 'get_scheduler_from_app',
 
 
 def get_scheduler(request):
-    scheduler = get_scheduler_from_request(request)
+    scheduler = get_scheduler_from_app(request.app)
     if scheduler is None:
         raise RuntimeError(
             "Call aiojobs.aiohttp.setup() on application initialization")
@@ -17,11 +15,7 @@ def get_scheduler(request):
 
 
 def get_scheduler_from_app(app):
-    return app.get('AIOJOBS_SCHEDULER')
-
-
-def get_scheduler_from_request(request):
-    return request.config_dict.get('AIOJOBS_SCHEDULER')
+    return getattr(app, 'AIOJOBS_SCHEDULER', None)
 
 
 async def spawn(request, coro):
@@ -31,21 +25,17 @@ async def spawn(request, coro):
 def atomic(coro):
     @wraps(coro)
     async def wrapper(request):
-        if isinstance(request, View):
-            # Class Based View decorated.
-            request = request.request
-
         job = await spawn(request, coro(request))
         return await job.wait()
     return wrapper
 
 
 def setup(app, **kwargs):
-    async def on_startup(app):
-        app['AIOJOBS_SCHEDULER'] = await create_scheduler(**kwargs)
+    async def on_startup(app, loop):
+        app.AIOJOBS_SCHEDULER = await create_scheduler(**kwargs)
 
-    async def on_cleanup(app):
-        await app['AIOJOBS_SCHEDULER'].close()
+    async def on_cleanup(app, loop):
+        await app.AIOJOBS_SCHEDULER.close()
 
-    app.on_startup.append(on_startup)
-    app.on_cleanup.append(on_cleanup)
+    app.register_listener(on_startup, 'before_server_start')
+    app.register_listener(on_cleanup, 'before_server_stop')
